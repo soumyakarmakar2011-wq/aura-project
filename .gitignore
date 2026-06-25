@@ -1,0 +1,18 @@
+# Environment — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Node (if you add a package.json later)
+node_modules/
