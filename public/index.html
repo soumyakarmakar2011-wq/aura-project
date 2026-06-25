@@ -471,6 +471,60 @@ footer p{font-size:.8rem;color:var(--ink3)}
 #cc{font:400 10px 'Inter',sans-serif;color:var(--ink3)}
 #cc.warn{color:var(--peach)}
 
+/* ── SELECTION REPLY POPUP ── */
+.sel-popup{
+  position:fixed;z-index:9999;
+  transform:translate(-50%,-100%);
+  margin-top:-10px;
+}
+.sel-popup button{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:999px;
+  background:var(--s3);border:1px solid var(--border3);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  font:600 12px 'Inter',sans-serif;color:var(--ink);
+  white-space:nowrap;
+  transition:background .18s,color .18s,transform .18s var(--ease);
+}
+.sel-popup button:hover{background:var(--accent);color:#fff;transform:translateY(-2px)}
+.sel-popup::after{
+  content:'';position:absolute;top:100%;left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--s3);
+}
+
+/* ── REPLY BAR (above input) ── */
+.reply-bar{
+  display:none;align-items:center;gap:10px;
+  margin:0 1px 8px;padding:8px 10px 8px 12px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border2);
+  border-radius:11px;
+  animation:min .25s var(--ease) both;
+}
+.reply-bar.show{display:flex}
+.reply-bar-line{width:2px;align-self:stretch;background:var(--accent);border-radius:2px;flex-shrink:0}
+.reply-bar-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.reply-bar-label{font:600 9.5px 'Inter',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.reply-bar-snippet{font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reply-bar-close{
+  width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink3);font-size:11px;
+  background:rgba(255,255,255,.04);
+  transition:color .2s,background .2s;
+}
+.reply-bar-close:hover{color:var(--ink);background:rgba(255,255,255,.09)}
+
+/* ── QUOTE BLOCK (inside a sent message) ── */
+.quote-block{
+  border-left:2px solid rgba(255,255,255,.45);
+  padding:1px 0 1px 9px;margin-bottom:6px;
+  font-size:11.5px;line-height:1.4;opacity:.7;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;
+}
+
 /* ─── RESPONSIVE ────────────────────────── */
 @media(max-width:520px){
   #land{padding:90px 16px 110px;gap:16px}
@@ -585,6 +639,14 @@ footer p{font-size:.8rem;color:var(--ink3)}
   </div>
 
   <div class="input-wrap">
+    <div class="reply-bar" id="replyBar">
+      <div class="reply-bar-line"></div>
+      <div class="reply-bar-text">
+        <span class="reply-bar-label">Replying to AURA</span>
+        <span class="reply-bar-snippet" id="replyBarSnippet"></span>
+      </div>
+      <button class="reply-bar-close" id="replyBarClose" title="Cancel reply">✕</button>
+    </div>
     <div class="input-shell">
       <textarea id="inp" rows="1" placeholder="Message AURA…"></textarea>
       <button id="send" title="Send">↑</button>
@@ -594,6 +656,11 @@ footer p{font-size:.8rem;color:var(--ink3)}
       <span id="cc"></span>
     </div>
   </div>
+</div>
+
+<!-- selection → reply popup -->
+<div class="sel-popup" id="selPopup" style="display:none">
+  <button id="selReplyBtn" type="button">↩ Reply</button>
 </div>
 
 <script>
@@ -753,7 +820,7 @@ function render(text){
 }
 
 /* add message */
-function addMsg(content,role,state){
+function addMsg(content,role,state,quote){
   // state: 'think' | 'err' | null
   welcome.style.display='none';
   list.classList.add('show');
@@ -774,6 +841,13 @@ function addMsg(content,role,state){
   var bub=document.createElement('div');
   bub.className='bubble '+(state==='err'?'ai err':role)+(state==='think'?' think':'');
 
+  if(quote){
+    var q=document.createElement('div');
+    q.className='quote-block';
+    q.textContent=quote;
+    bub.appendChild(q);
+  }
+
   if(state==='think'){
     var ind=document.createElement('div');
     ind.className='tind';
@@ -782,7 +856,9 @@ function addMsg(content,role,state){
   } else if(role==='ai'){
     bub.appendChild(render(content));
   } else {
-    bub.textContent=content;
+    var txt=document.createElement('div');
+    txt.textContent=content;
+    bub.appendChild(txt);
   }
 
   col.appendChild(bub);
@@ -797,18 +873,85 @@ function addMsg(content,role,state){
   return bub;
 }
 
+/* ── REPLY-TO-MESSAGE ── */
+var replyContext=null;
+var pendingQuote=null;
+var selPopup=document.getElementById('selPopup');
+var selReplyBtn=document.getElementById('selReplyBtn');
+var replyBar=document.getElementById('replyBar');
+var replyBarSnippet=document.getElementById('replyBarSnippet');
+var replyBarClose=document.getElementById('replyBarClose');
+
+function hideSelPopup(){selPopup.style.display='none';pendingQuote=null}
+
+document.addEventListener('selectionchange',function(){
+  clearTimeout(window._selTimer);
+  window._selTimer=setTimeout(function(){
+    var sel=window.getSelection();
+    if(!sel||sel.isCollapsed||!sel.toString().trim()){hideSelPopup();return}
+
+    var node=sel.anchorNode;
+    var el=node&&(node.nodeType===1?node:node.parentElement);
+    var bubbleEl=el&&el.closest?el.closest('.bubble'):null;
+
+    // only allow replying to AURA's messages, and not while it's "thinking"
+    if(!bubbleEl||!bubbleEl.classList.contains('ai')||bubbleEl.classList.contains('think')){
+      hideSelPopup();return;
+    }
+
+    var range=sel.getRangeAt(0);
+    var rect=range.getBoundingClientRect();
+    if(!rect||(rect.width===0&&rect.height===0)){hideSelPopup();return}
+
+    pendingQuote=sel.toString().trim();
+    var left=Math.min(Math.max(rect.left+rect.width/2,60),window.innerWidth-60);
+    selPopup.style.left=left+'px';
+    selPopup.style.top=Math.max(rect.top,50)+'px';
+    selPopup.style.display='block';
+  },10);
+});
+
+selReplyBtn.addEventListener('click',function(){
+  if(!pendingQuote)return;
+  replyContext=pendingQuote.length>180?pendingQuote.slice(0,180)+'…':pendingQuote;
+  replyBarSnippet.textContent=replyContext;
+  replyBar.classList.add('show');
+  window.getSelection().removeAllRanges();
+  hideSelPopup();
+  inp.focus();
+});
+
+replyBarClose.addEventListener('click',function(){
+  replyContext=null;
+  replyBar.classList.remove('show');
+});
+
+document.addEventListener('mousedown',function(e){
+  if(!selPopup.contains(e.target))hideSelPopup();
+});
+document.addEventListener('touchstart',function(e){
+  if(!selPopup.contains(e.target))hideSelPopup();
+},{passive:true});
+msgsEl.addEventListener('scroll',hideSelPopup);
+
 /* send */
 async function send(){
   var text=inp.value.trim();
   if(!text||busy)return;
   if(text.length>MAX){alert('Message too long (max '+MAX+' chars)');return}
 
+  var quoteForBubble=replyContext;
+  var payloadText=quoteForBubble?('> '+quoteForBubble.replace(/\n/g,'\n> ')+'\n\n'+text):text;
+
   inp.value='';inp.style.height='auto';
   cc.textContent='';cc.className='';
   sendBtn.disabled=true;busy=true;
 
-  addMsg(text,'usr',null);
-  chatHistory.push({role:'user',content:text});
+  addMsg(text,'usr',null,quoteForBubble);
+  chatHistory.push({role:'user',content:payloadText});
+
+  replyContext=null;
+  replyBar.classList.remove('show');
 
   var thinkBub=addMsg('','ai','think');
 
@@ -816,7 +959,7 @@ async function send(){
     var res=await fetch('/api/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,sessionId:sessionId})
+      body:JSON.stringify({message:payloadText,sessionId:sessionId})
     });
     var data=await res.json();
     if(!res.ok){
