@@ -14,10 +14,11 @@
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{
   font-family:'Inter',sans-serif;
-  background:#07070e;
-  color:#e8e6f4;
+  background:var(--bg);
+  color:var(--ink);
   overflow-x:hidden;
   -webkit-font-smoothing:antialiased;
+  transition:background .4s ease,color .4s ease;
 }
 img,svg{display:block}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
@@ -27,6 +28,7 @@ textarea{font-family:inherit}
 /* ─── TOKENS ─────────────────────────────── */
 :root{
   --bg:       #07070e;
+  --bgT:      rgba(7,7,14,.9);
   --s1:       #0c0c18;
   --s2:       #111120;
   --s3:       #161628;
@@ -46,6 +48,28 @@ textarea{font-family:inherit}
   --sky:      #6aaae8;
   --ease:     cubic-bezier(.16,1,.3,1);
   --r:        16px;
+  --glass:    rgba(255,255,255,.05);
+  transition:color-scheme .4s;
+}
+
+[data-theme="light"]{
+  --bg:       #f6f3ec;
+  --bgT:      rgba(246,243,236,.86);
+  --s1:       #ffffff;
+  --s2:       #ffffff;
+  --s3:       #efe9dd;
+  --border:   rgba(28,22,46,.08);
+  --border2:  rgba(28,22,46,.13);
+  --border3:  rgba(28,22,46,.2);
+  --ink:      #1d1830;
+  --ink2:     #6c6580;
+  --ink3:     #a39db3;
+  --accent:   #7a58d6;
+  --accent2:  rgba(122,88,214,.14);
+  --accent3:  rgba(122,88,214,.07);
+  --glow:     rgba(122,88,214,.28);
+  --glow2:    rgba(122,88,214,.12);
+  --glass:    rgba(20,16,40,.035);
 }
 
 /* ─── CANVAS / GRAIN ─────────────────────── */
@@ -115,7 +139,7 @@ textarea{font-family:inherit}
 .pill-stat{
   display:inline-flex;align-items:center;gap:6px;
   padding:6px 13px;border-radius:999px;
-  background:rgba(255,255,255,.04);border:1px solid var(--border2);
+  background:var(--glass);border:1px solid var(--border2);
   font:500 11.5px 'Inter',sans-serif;color:var(--ink2);
 }
 .dot-live{width:5px;height:5px;border-radius:50%;background:var(--mint);animation:blink 2s infinite}
@@ -135,7 +159,7 @@ textarea{font-family:inherit}
 .btn-g{
   display:inline-flex;align-items:center;gap:8px;
   padding:13px 24px;border-radius:999px;
-  background:rgba(255,255,255,.05);border:1px solid var(--border2);
+  background:var(--glass);border:1px solid var(--border2);
   color:var(--ink2);font:600 14px 'Inter',sans-serif;
   transition:transform .3s var(--ease),color .2s,border-color .2s;
 }
@@ -144,7 +168,7 @@ textarea{font-family:inherit}
 /* preview card */
 .pcard{
   width:100%;max-width:560px;
-  background:rgba(255,255,255,.03);
+  background:var(--glass);
   border:1px solid var(--border2);
   border-radius:20px;
   padding:18px 20px;
@@ -162,7 +186,7 @@ textarea{font-family:inherit}
 .pd:nth-child(3){background:#28c840}
 .pmsgs{display:flex;flex-direction:column;gap:8px}
 .pm{max-width:82%;padding:9px 13px;border-radius:13px;font-size:12.5px;line-height:1.5}
-.pm.ai{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--ink2)}
+.pm.ai{align-self:flex-start;background:var(--glass);border:1px solid var(--border);color:var(--ink2)}
 .pm.usr{align-self:flex-end;background:var(--accent);color:#fff}
 .tdots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ink3);margin:0 2px;animation:tdot 1.4s infinite}
 .tdots span:nth-child(2){animation-delay:.2s}
@@ -188,7 +212,7 @@ textarea{font-family:inherit}
 .feat{display:flex;align-items:center;gap:8px;color:var(--ink2);font-size:12.5px}
 .feat-ic{
   width:28px;height:28px;border-radius:8px;
-  background:rgba(255,255,255,.04);border:1px solid var(--border2);
+  background:var(--glass);border:1px solid var(--border2);
   display:flex;align-items:center;justify-content:center;font-size:13px;
 }
 
@@ -202,7 +226,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
 .pill-open{
   display:inline-flex;align-items:center;gap:8px;
   padding:10px 20px;border-radius:999px;
-  background:rgba(255,255,255,.05);border:1px solid var(--border2);
+  background:var(--glass);border:1px solid var(--border2);
   font:600 13px 'Inter',sans-serif;color:var(--ink2);
   transition:transform .3s var(--ease),color .2s,border-color .2s;
 }
@@ -212,6 +236,21 @@ footer p{font-size:.8rem;color:var(--ink3)}
 .curtain{position:fixed;inset:0;background:var(--bg);z-index:600;pointer-events:none;opacity:0}
 .curtain.go{animation:cgo .45s var(--ease) forwards}
 @keyframes cgo{0%{opacity:0}45%{opacity:1}100%{opacity:0}}
+
+/* ── THEME TOGGLE (glass) ── */
+.theme-fab{
+  position:fixed;top:18px;right:18px;z-index:50;
+  width:42px;height:42px;border-radius:50%;
+  background:var(--glass);
+  backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);
+  border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;
+  box-shadow:0 6px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .3s var(--ease),border-color .25s,background .25s;
+}
+.theme-fab:hover{transform:translateY(-2px) scale(1.06);border-color:var(--accent)}
+.theme-fab:active{transform:translateY(0) scale(.96)}
 
 /* ════════════════════════════════
    CHAT PAGE
@@ -226,7 +265,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
   padding:10px 16px;
-  background:rgba(7,7,14,.9);
+  background:var(--bgT);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
   flex-shrink:0;
@@ -256,7 +295,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
 .tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .ib{
   width:32px;height:32px;border-radius:9px;flex-shrink:0;
-  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  background:var(--glass);border:1px solid var(--border);
   display:flex;align-items:center;justify-content:center;
   font-size:13px;color:var(--ink2);
   transition:background .2s,color .2s;
@@ -265,7 +304,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
 .back-btn{
   display:flex;align-items:center;gap:5px;
   padding:6px 12px;border-radius:999px;
-  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  background:var(--glass);border:1px solid var(--border);
   font:500 11.5px 'Inter',sans-serif;color:var(--ink2);
   white-space:nowrap;
   transition:color .2s,border-color .2s;
@@ -311,7 +350,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
 .chip{
   display:inline-flex;align-items:center;gap:6px;
   padding:8px 13px;border-radius:11px;
-  background:rgba(255,255,255,.04);border:1px solid var(--border2);
+  background:var(--glass);border:1px solid var(--border2);
   font:500 12px 'Inter',sans-serif;color:var(--ink2);
   transition:background .2s,color .2s,border-color .2s,transform .25s var(--ease);
   text-align:left;
@@ -429,7 +468,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
 /* ── INPUT ── */
 .input-wrap{
   padding:10px 14px 14px;
-  background:rgba(7,7,14,.9);
+  background:var(--bgT);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-top:1px solid var(--border);
   flex-shrink:0;
@@ -492,12 +531,13 @@ footer p{font-size:.8rem;color:var(--ink3)}
   transform:translateX(-50%);
   border:5px solid transparent;border-top-color:var(--s3);
 }
+.sel-popup.touch-anchor::after{display:none}
 
 /* ── REPLY BAR (above input) ── */
 .reply-bar{
   display:none;align-items:center;gap:10px;
   margin:0 1px 8px;padding:8px 10px 8px 12px;
-  background:rgba(255,255,255,.04);
+  background:var(--glass);
   border:1px solid var(--border2);
   border-radius:11px;
   animation:min .25s var(--ease) both;
@@ -511,7 +551,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
   width:22px;height:22px;border-radius:7px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   color:var(--ink3);font-size:11px;
-  background:rgba(255,255,255,.04);
+  background:var(--glass);
   transition:color .2s,background .2s;
 }
 .reply-bar-close:hover{color:var(--ink);background:rgba(255,255,255,.09)}
@@ -549,6 +589,11 @@ footer p{font-size:.8rem;color:var(--ink3)}
 <canvas id="bg"></canvas>
 <div class="grain"></div>
 <div class="curtain" id="curtain"></div>
+
+<!-- floating glass theme toggle (landing only — covered by #chat when open) -->
+<button class="theme-fab" id="themeToggleLanding" title="Switch theme" aria-label="Toggle light and dark theme">
+  <span class="theme-fab-icon" id="themeIconLanding">🌙</span>
+</button>
 
 <!-- ══════ LANDING ══════ -->
 <section id="land">
@@ -611,6 +656,7 @@ footer p{font-size:.8rem;color:var(--ink3)}
       </div>
     </div>
     <div class="tb-right">
+      <button class="ib" id="themeToggleChat" title="Switch theme"><span id="themeIconChat">🌙</span></button>
       <button class="ib" id="clearBtn" title="Clear chat">🗑</button>
       <button class="back-btn" onclick="closeChat()">← Back</button>
     </div>
@@ -676,17 +722,29 @@ footer p{font-size:.8rem;color:var(--ink3)}
   ];
   function rs(){W=c.width=window.innerWidth;H=c.height=window.innerHeight}
   rs();window.addEventListener('resize',rs);
+
+  function bgHex(){
+    var v=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    return v||'#07070e';
+  }
+  var fillColor=bgHex();
+  var orbAlphaMul=1;
+  window.__auraRefreshCanvasTheme=function(isLight){
+    fillColor=bgHex();
+    orbAlphaMul=isLight?.4:1;
+  };
+
   function draw(t){
     x.clearRect(0,0,W,H);
-    x.fillStyle='#07070e';x.fillRect(0,0,W,H);
+    x.fillStyle=fillColor;x.fillRect(0,0,W,H);
     orbs.forEach(function(o,i){
       var fx=Math.sin(t*o.sp*1.3+i*1.2)*.18;
       var fy=Math.cos(t*o.sp+i*.9)*.14;
       var cx=(o.ox+fx)*W,cy=(o.oy+fy)*H;
       var rad=Math.max(W,H)*o.sz;
       var g=x.createRadialGradient(cx,cy,0,cx,cy,rad);
-      g.addColorStop(0,'rgba('+o.r+','+o.g+','+o.b+',.52)');
-      g.addColorStop(.5,'rgba('+o.r+','+o.g+','+o.b+',.16)');
+      g.addColorStop(0,'rgba('+o.r+','+o.g+','+o.b+','+(.52*orbAlphaMul)+')');
+      g.addColorStop(.5,'rgba('+o.r+','+o.g+','+o.b+','+(.16*orbAlphaMul)+')');
       g.addColorStop(1,'rgba('+o.r+','+o.g+','+o.b+',0)');
       x.fillStyle=g;
       x.beginPath();
@@ -697,6 +755,34 @@ footer p{font-size:.8rem;color:var(--ink3)}
   }
   if(!window.matchMedia('(prefers-reduced-motion:reduce)').matches)requestAnimationFrame(draw);
   else draw(8000);
+})();
+
+/* ── THEME TOGGLE ── */
+(function(){
+  var landingBtn=document.getElementById('themeToggleLanding');
+  var chatBtn=document.getElementById('themeToggleChat');
+  var landingIcon=document.getElementById('themeIconLanding');
+  var chatIcon=document.getElementById('themeIconChat');
+
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme',theme);
+    try{localStorage.setItem('aura_theme',theme)}catch(e){}
+    var icon=theme==='light'?'☀️':'🌙';
+    if(landingIcon)landingIcon.textContent=icon;
+    if(chatIcon)chatIcon.textContent=icon;
+    if(window.__auraRefreshCanvasTheme)window.__auraRefreshCanvasTheme(theme==='light');
+  }
+  function toggleTheme(){
+    var cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+    applyTheme(cur);
+  }
+  if(landingBtn)landingBtn.addEventListener('click',toggleTheme);
+  if(chatBtn)chatBtn.addEventListener('click',toggleTheme);
+
+  var saved=null;
+  try{saved=localStorage.getItem('aura_theme')}catch(e){}
+  if(!saved)saved=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+  applyTheme(saved);
 })();
 
 /* ── REVEAL ── */
@@ -881,34 +967,53 @@ var selReplyBtn=document.getElementById('selReplyBtn');
 var replyBar=document.getElementById('replyBar');
 var replyBarSnippet=document.getElementById('replyBarSnippet');
 var replyBarClose=document.getElementById('replyBarClose');
+var inputWrapEl=document.querySelector('.input-wrap');
+var isTouch=window.matchMedia('(pointer:coarse)').matches||'ontouchstart' in window;
 
 function hideSelPopup(){selPopup.style.display='none';pendingQuote=null}
 
-document.addEventListener('selectionchange',function(){
-  clearTimeout(window._selTimer);
-  window._selTimer=setTimeout(function(){
-    var sel=window.getSelection();
-    if(!sel||sel.isCollapsed||!sel.toString().trim()){hideSelPopup();return}
+function checkSelectionAndShowPopup(){
+  var sel=window.getSelection();
+  if(!sel||sel.isCollapsed||!sel.toString().trim()){hideSelPopup();return}
 
-    var node=sel.anchorNode;
-    var el=node&&(node.nodeType===1?node:node.parentElement);
-    var bubbleEl=el&&el.closest?el.closest('.bubble'):null;
+  var node=sel.anchorNode;
+  var el=node&&(node.nodeType===1?node:node.parentElement);
+  var bubbleEl=el&&el.closest?el.closest('.bubble'):null;
 
-    // only allow replying to AURA's messages, and not while it's "thinking"
-    if(!bubbleEl||!bubbleEl.classList.contains('ai')||bubbleEl.classList.contains('think')){
-      hideSelPopup();return;
-    }
+  // only allow replying to AURA's messages, and not while it's "thinking"
+  if(!bubbleEl||!bubbleEl.classList.contains('ai')||bubbleEl.classList.contains('think')){
+    hideSelPopup();return;
+  }
 
+  pendingQuote=sel.toString().trim();
+
+  if(isTouch){
+    // anchor above the input bar — avoids colliding with the native
+    // copy/share selection toolbar that mobile browsers show over the text
+    selPopup.classList.add('touch-anchor');
+    var iwRect=inputWrapEl.getBoundingClientRect();
+    selPopup.style.left=(window.innerWidth/2)+'px';
+    selPopup.style.top=Math.max(iwRect.top-6,50)+'px';
+  } else {
     var range=sel.getRangeAt(0);
     var rect=range.getBoundingClientRect();
     if(!rect||(rect.width===0&&rect.height===0)){hideSelPopup();return}
-
-    pendingQuote=sel.toString().trim();
+    selPopup.classList.remove('touch-anchor');
     var left=Math.min(Math.max(rect.left+rect.width/2,60),window.innerWidth-60);
     selPopup.style.left=left+'px';
     selPopup.style.top=Math.max(rect.top,50)+'px';
-    selPopup.style.display='block';
-  },10);
+  }
+  selPopup.style.display='block';
+}
+
+document.addEventListener('selectionchange',function(){
+  clearTimeout(window._selTimer);
+  window._selTimer=setTimeout(checkSelectionAndShowPopup,10);
+});
+// fallback for mobile browsers that fire selectionchange unreliably mid-drag
+msgsEl.addEventListener('touchend',function(){
+  clearTimeout(window._selTimer);
+  window._selTimer=setTimeout(checkSelectionAndShowPopup,60);
 });
 
 selReplyBtn.addEventListener('click',function(){
