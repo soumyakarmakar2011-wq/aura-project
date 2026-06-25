@@ -661,6 +661,8 @@ function closeChat(){
 
 /* ── CHAT ENGINE ── */
 var chatHistory=[],busy=false;
+var sessionId=localStorage.getItem('aura_session');
+if(!sessionId){sessionId='sess_'+Date.now()+'_'+Math.random().toString(36).slice(2);localStorage.setItem('aura_session',sessionId);}
 var msgsEl=document.getElementById('msgs');
 var list=document.getElementById('msgs-list');
 var welcome=document.getElementById('welcome');
@@ -814,7 +816,7 @@ async function send(){
     var res=await fetch('/api/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:chatHistory})
+      body:JSON.stringify({message:text,sessionId:sessionId})
     });
     var data=await res.json();
     if(!res.ok){
