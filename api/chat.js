@@ -1,6 +1,5 @@
-// AURA — Secure Vercel Serverless Function
+// AURA — Secure Vercel Serverless Function with Supabase Memory
 // API key is ONLY here, read from environment variables
-// Never exposed to the browser
 
 const RATE_MAP = new Map();
 const RATE_LIMIT  = 20;
@@ -19,19 +18,19 @@ function isRateLimited(ip) {
 }
 
 var MAX_MSG_LEN   = 4000;
-var MAX_TURNS     = 20;
+var MAX_TURNS     = 40;
 var ALLOWED_ROLES = { user: true, assistant: true };
 
 function sanitize(messages) {
   if (!Array.isArray(messages)) throw new Error('messages must be an array');
   if (messages.length === 0)    throw new Error('no messages provided');
-  if (messages.length > MAX_TURNS) throw new Error('too many messages');
+  if (messages.length > MAX_TURNS) messages = messages.slice(-MAX_TURNS);
 
   return messages.map(function(m, i) {
-    if (!m || typeof m !== 'object')        throw new Error('message[' + i + '] invalid');
-    if (!ALLOWED_ROLES[m.role])             throw new Error('message[' + i + '] invalid role: ' + m.role);
-    if (typeof m.content !== 'string')      throw new Error('message[' + i + '] content must be string');
-    if (m.content.length > MAX_MSG_LEN)    throw new Error('message[' + i + '] too long');
+    if (!m || typeof m !== 'object')     throw new Error('message[' + i + '] invalid');
+    if (!ALLOWED_ROLES[m.role])          throw new Error('message[' + i + '] invalid role');
+    if (typeof m.content !== 'string')   throw new Error('message[' + i + '] content must be string');
+    if (m.content.length > MAX_MSG_LEN) throw new Error('message[' + i + '] too long');
     return {
       role:    m.role,
       content: m.content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim()
@@ -39,13 +38,31 @@ function sanitize(messages) {
   });
 }
 
+// Supabase REST helper (no SDK needed)
+async function supabaseRequest(path, method, body, supabaseUrl, supabaseKey) {
+  var res = await fetch(supabaseUrl + '/rest/v1' + path, {
+    method: method || 'GET',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        supabaseKey,
+      'Authorization': 'Bearer ' + supabaseKey,
+      'Prefer':        method === 'POST' ? 'return=minimal' : ''
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    var err = await res.text().catch(function(){ return ''; });
+    throw new Error('Supabase error ' + res.status + ': ' + err);
+  }
+  if (res.status === 204 || res.headers.get('content-length') === '0') return null;
+  return res.json();
+}
+
 module.exports = async function handler(req, res) {
-  // Security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'no-store');
 
-  // CORS — allow same origin + localhost dev
   var origin = req.headers['origin'] || '';
   var host   = req.headers['host']   || '';
   var allowed =
@@ -62,7 +79,6 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
   if (req.method !== 'POST')    { res.status(405).json({ error: 'Method not allowed' }); return; }
 
-  // Rate limit
   var ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
         || (req.socket && req.socket.remoteAddress)
         || 'unknown';
@@ -71,30 +87,55 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // Parse & validate body
-  var msgs;
+  var body;
   try {
-    var body = req.body;
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch(e) { throw new Error('Invalid JSON'); }
-    }
+    body = req.body;
+    if (typeof body === 'string') body = JSON.parse(body);
     if (!body || typeof body !== 'object') throw new Error('Invalid request body');
-    msgs = sanitize(body.messages);
-    if (msgs[msgs.length - 1].role !== 'user') throw new Error('Last message must be from user');
   } catch(err) {
     res.status(400).json({ error: 'Bad request: ' + err.message });
     return;
   }
 
-  // Check API key
-  var GROQ_API_KEY = process.env.GROQ_API_KEY;
-  if (!GROQ_API_KEY) {
-    console.error('GROQ_API_KEY not set');
-    res.status(500).json({ error: 'Server configuration error. Contact the administrator.' });
+  var sessionId  = typeof body.sessionId === 'string' ? body.sessionId.slice(0, 64) : null;
+  var newMessage = typeof body.message   === 'string' ? body.message.slice(0, MAX_MSG_LEN).trim() : null;
+
+  if (!newMessage) {
+    res.status(400).json({ error: 'No message provided' });
     return;
   }
 
-  // Call Groq
+  var GROQ_API_KEY    = process.env.GROQ_API_KEY;
+  var SUPABASE_URL    = process.env.SUPABASE_URL;
+  var SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+  if (!GROQ_API_KEY) {
+    res.status(500).json({ error: 'Server configuration error (GROQ)' });
+    return;
+  }
+
+  // Load history from Supabase if sessionId provided
+  var dbMessages = [];
+  if (sessionId && SUPABASE_URL && SUPABASE_ANON_KEY) {
+    try {
+      var rows = await supabaseRequest(
+        '/conversations?session_id=eq.' + encodeURIComponent(sessionId) +
+        '&order=created_at.asc&limit=40',
+        'GET', null, SUPABASE_URL, SUPABASE_ANON_KEY
+      );
+      if (Array.isArray(rows)) {
+        dbMessages = rows.map(function(r){ return { role: r.role, content: r.content }; });
+      }
+    } catch(err) {
+      console.error('Supabase load error:', err.message);
+      // Non-fatal — continue without history
+    }
+  }
+
+  // Build messages for Groq
+  dbMessages.push({ role: 'user', content: newMessage });
+  var msgs = sanitize(dbMessages);
+
   try {
     var upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -109,36 +150,44 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role:    'system',
-            content: 'You are AURA, a helpful and brilliant AI assistant. Be concise, smart, and conversational. Use markdown for code blocks and formatting when helpful.'
+            content: 'You are AURA, a helpful and brilliant AI assistant with memory of past conversations. Be concise, smart, and conversational. Use markdown for code and formatting when helpful.'
           }
         ].concat(msgs)
       })
     });
 
     if (!upstream.ok) {
-      var errText = await upstream.text().catch(function(){ return ''; });
-      console.error('Groq upstream error', upstream.status, errText);
-      res.status(502).json({ error: 'AI service error (' + upstream.status + '). Please try again.' });
+      console.error('Groq error:', upstream.status);
+      res.status(502).json({ error: 'AI service error. Please try again.' });
       return;
     }
 
     var data  = await upstream.json();
-    var reply = data &&
-                data.choices &&
-                data.choices[0] &&
-                data.choices[0].message &&
-                data.choices[0].message.content;
+    var reply = data && data.choices && data.choices[0] &&
+                data.choices[0].message && data.choices[0].message.content;
 
     if (!reply) {
-      console.error('Empty Groq response:', JSON.stringify(data));
-      res.status(502).json({ error: 'Empty response from AI. Please try again.' });
+      res.status(502).json({ error: 'Empty response from AI.' });
       return;
     }
 
-    res.status(200).json({ reply: reply });
+    // Save both messages to Supabase
+    if (sessionId && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      try {
+        await supabaseRequest('/conversations', 'POST', [
+          { session_id: sessionId, role: 'user',      content: newMessage },
+          { session_id: sessionId, role: 'assistant', content: reply }
+        ], SUPABASE_URL, SUPABASE_ANON_KEY);
+      } catch(err) {
+        console.error('Supabase save error:', err.message);
+        // Non-fatal
+      }
+    }
+
+    res.status(200).json({ reply: reply, sessionId: sessionId });
 
   } catch(err) {
-    console.error('Handler error:', err.message, err.stack);
-    res.status(500).json({ error: 'Internal server error. Please try again.' });
+    console.error('Handler error:', err.message);
+    res.status(500).json({ error: 'Internal server error.' });
   }
 };
