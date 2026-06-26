@@ -17,7 +17,7 @@ function isRateLimited(ip) {
   return false;
 }
 
-var MAX_MSG_LEN   = 4000;
+var MAX_MSG_LEN   = 16000;
 var MAX_TURNS     = 40;
 var ALLOWED_ROLES = { user: true, assistant: true };
 
@@ -152,9 +152,29 @@ module.exports = async function handler(req, res) {
     }
   }
 
+ // images: base64 data URLs from the frontend (already compressed client-side)
+  var images = Array.isArray(body.images)
+    ? body.images.filter(function(u){
+        return typeof u === 'string' && u.indexOf('data:image/') === 0 && u.length < 6 * 1024 * 1024;
+      }).slice(0, 3)
+    : [];
+
   // Build messages for Groq
   dbMessages.push({ role: 'user', content: newMessage });
   var msgs = sanitize(dbMessages);
+
+  // if images are attached, convert the newest user message to multimodal content
+  if (images.length && msgs.length) {
+    var lastMsg = msgs[msgs.length - 1];
+    lastMsg.content = [{ type: 'text', text: lastMsg.content }]
+      .concat(images.map(function(url){ return { type: 'image_url', image_url: { url: url } }; }));
+  }
+
+  // NOTE: llama-4-scout is Groq's only current vision model, and it's
+  // already scheduled to shut down 07/17/26 with no confirmed vision
+  // replacement announced yet. If image replies stop working after that,
+  // this is why — ping Claude to swap in whatever Groq's vision model is by then.
+  var modelToUse = images.length ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile';
 
   try {
     var upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -164,7 +184,7 @@ module.exports = async function handler(req, res) {
         'Authorization': 'Bearer ' + GROQ_API_KEY
       },
       body: JSON.stringify({
-        model:       'llama-3.3-70b-versatile',
+        model:       modelToUse,
         max_tokens:  1024,
         temperature: 0.7,
         messages: [
