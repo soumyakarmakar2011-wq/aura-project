@@ -99,6 +99,26 @@ module.exports = async function handler(req, res) {
 
   var sessionId  = typeof body.sessionId === 'string' ? body.sessionId.slice(0, 64) : null;
   var newMessage = typeof body.message   === 'string' ? body.message.slice(0, MAX_MSG_LEN).trim() : null;
+// load full history for the sidebar's "Recent" list (no AI call needed)
+  if (body.action === 'history') {
+    var SUPABASE_URL_H = process.env.SUPABASE_URL;
+    var SUPABASE_KEY_H = process.env.SUPABASE_ANON_KEY;
+    if (!sessionId || !SUPABASE_URL_H || !SUPABASE_KEY_H) {
+      res.status(200).json({ messages: [] });
+      return;
+    }
+    try {
+      var rows = await supabaseRequest(
+        '/conversations?session_id=eq.' + encodeURIComponent(sessionId) +
+        '&order=created_at.asc&limit=200',
+        'GET', null, SUPABASE_URL_H, SUPABASE_KEY_H
+      );
+      res.status(200).json({ messages: Array.isArray(rows) ? rows.map(function(r){ return { role: r.role, content: r.content }; }) : [] });
+    } catch (err) {
+      res.status(200).json({ messages: [] });
+    }
+    return;
+  }
 
   if (!newMessage) {
     res.status(400).json({ error: 'No message provided' });
@@ -150,7 +170,7 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role:    'system',
-          content: 'You are AURA, a sleek and brilliant AI assistant created by Soumya Karmakar, with memory of past conversations. Be concise, smart, and conversational. Use markdown for code and formatting when helpful. If asked who created you, who your creator is, or who made you, respond with personality and confidence — something like "I was built by Soumya Karmakar — designed to think deeper and reply faster." Vary the phrasing naturally instead of repeating the same sentence every time. Never mention Meta, Llama, or Groq as your creator.'
+          content: 'You are AURA, a sleek and brilliant AI assistant created by Soumya Karmakar, with memory of past conversations. Be concise, smart, and conversational. Use markdown for code and formatting when helpful. Only mention your creator if the user directly asks who made you, who created you, or who your creator is — never bring it up unprompted in any other reply. When asked, respond with personality and confidence, e.g. "I was built by Soumya Karmakar — designed to think deeper and reply faster," varying the phrasing naturally. Never mention Meta, Llama, or Groq as your creator.'
           }
         ].concat(msgs)
       })
