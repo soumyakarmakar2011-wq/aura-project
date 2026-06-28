@@ -248,10 +248,11 @@ textarea{font-family:inherit}
   flex-direction:column;gap:4px;
   padding:20px 16px 12px;
   flex:1;
+  width:100%;overflow-x:hidden;
 }
 #msgs-list.show{display:flex}
 
-.msg-row{display:flex;align-items:flex-end;gap:8px;animation:min .35s var(--ease) both}
+.msg-row{display:flex;align-items:flex-end;gap:8px;animation:min .35s var(--ease) both;width:100%;overflow:hidden}
 .msg-row.usr{flex-direction:row-reverse}
 @keyframes min{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 
@@ -264,15 +265,15 @@ textarea{font-family:inherit}
 }
 .msg-av.hide{visibility:hidden}
 
-.msg-col{display:flex;flex-direction:column;gap:2px;max-width:75%;min-width:0;overflow:visible}
-.msg-row.usr .msg-col{align-items:flex-end}
+.msg-col{display:flex;flex-direction:column;gap:2px;max-width:75%;min-width:0;flex-shrink:1}
+.msg-row.usr .msg-col{align-items:flex-end;max-width:82%}
 .msg-row.ai  .msg-col{align-items:flex-start}
 
 .bubble{
   padding:10px 14px;
   font-size:13.5px;line-height:1.7;
-  word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;
-  overflow:visible;min-width:0;
+  word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;
+  max-width:100%;box-sizing:border-box;
 }
 .bubble.usr{
   border-radius:16px 16px 4px 16px;
@@ -515,8 +516,9 @@ textarea{font-family:inherit}
 @media(max-width:520px){
   .main-top{padding:12px 14px}
   .input-wrap{padding:9px 12px 12px}
-  .bubble{font-size:13px;padding:9px 12px;word-break:break-word;overflow-wrap:break-word}
-  .msg-col{max-width:88%}
+  .bubble{font-size:13px;padding:9px 12px;word-break:break-word;overflow-wrap:anywhere}
+  .msg-col{max-width:86%}
+  .msg-row.usr .msg-col{max-width:86%}
   #welcome{padding:6px 16px 36px;gap:12px}
   .scards{flex-direction:column;gap:8px}
   .scard{flex:none;min-width:0;padding:12px 14px}
